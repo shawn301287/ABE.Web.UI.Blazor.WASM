@@ -1,0 +1,139 @@
+﻿@page "/"
+@using Services.Authentication
+@using ABE.Web.UI.Blazor.WASM.Models.Authentication
+@inject IAuthenticationService authService
+
+
+<h1>Hello, world!</h1>
+
+Welcome to your new app.
+
+<SurveyPrompt Title="How is Blazor working for you?" />
+
+<hr />
+
+<div>
+    <AuthorizeView>
+        <Authorized>
+            <h1>Your Dashboard - Your Claims</h1>
+            <div>
+                @foreach (var claim in userClaim)
+                {
+                    <div>@claim.Type - @claim.Value</div>
+                }
+            </div>
+            <div>
+                <button type="button" @onclick="Logout">Logout</button>
+            </div>
+        </Authorized>
+        <NotAuthorized>
+            <h1>!Oops you need to be login to view your dashboard</h1>
+            <br />
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="inputEmail">Email Address</label>
+                    <input type="email" class="form-control" id="inputEmail" @bind="@loginModel.Username" />
+                </div>
+                <div class="form-group">
+                    <label for="inputPassword">Password</label>
+                    <input type="password" class="form-control" id="inputPassword" @bind="@loginModel.Password" />
+                </div>
+                <button type="button" class="btn btn-primary" @onclick="Login">Login</button>
+            </div>
+            <div class="@loginStatus">
+                <label>@loginResponse</label>
+            </div>
+            <br />
+
+            <div class="card col-md-6">
+                <div class="card-header">
+                    <h3>Register</h3>
+                </div>
+                <div class="card-body">
+                        <div class="form-group">
+                            <label for="inputEmail">Email Address</label>
+                            <input type="email" class="form-control" id="inputEmail" @bind="@registerModel.Email" />
+                        </div>
+                        <div class="form-group">
+                            <label for="inputPassword">Password</label>
+                            <input type="password" class="form-control" id="inputPassword" @bind="@registerModel.Password" />
+                        </div>
+                        <button type="button" class="btn btn-primary" @onclick="Register">Register</button>
+                </div>
+                <div class="card-footer ">
+                    <div class="@registerStatus">
+                        <label>@registerResponse</label>
+                    </div>
+                </div>
+            </div>
+        </NotAuthorized>
+    </AuthorizeView>
+</div>
+
+@code{
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationState { get; set; }
+    private IList<Claim> userClaim
+    {
+        get
+        {
+            var auth = authenticationState.Result;
+            if (auth.User.Identity.IsAuthenticated)
+            {
+                return auth.User.Claims.ToList();
+            }
+            return new List<Claim>();
+        }
+    }
+
+    private LoginModel loginModel = new LoginModel();
+    public string loginResponse = "";
+    public string loginStatus = "text-info";
+
+    private RegisterModel registerModel = new RegisterModel();
+    public string registerResponse = "";
+    public string registerStatus = "text-info";
+
+    private async Task Register()
+    {
+        registerModel.Username = registerModel.Email;
+        AuthResponse authResponse = await authService.RegisterAsync(registerModel);
+
+        if (authResponse.Status == "Success")
+        {
+            registerStatus = "text-success";
+            registerResponse = authResponse.Message;
+            registerModel.Email = "";
+            registerModel.Username = "";
+            registerModel.Password = "";
+        }
+        else
+        {
+            registerStatus = "text-danger";
+            registerResponse = authResponse.Message;
+        }
+    }
+
+    private async Task Login()
+    {
+        AuthResponse authResponse = await authService.LoginAsync(loginModel);
+
+        if (authResponse.Status == "Success")
+        {
+            loginStatus = "text-success";
+            loginResponse = authResponse.Message;            
+            loginModel.Username = "";
+            loginModel.Password = "";
+        }
+        else
+        {
+            loginStatus = "text-danger";
+            loginResponse = authResponse.Message;
+        }
+    }
+
+    private void Logout()
+    {
+        authService.LogoutAsync();
+    }
+}
